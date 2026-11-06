@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}طلباتي{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">طلباتي</h2>
+{% for order in orders %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between">
+      <span>طلب #{{ order.pk }} — {{ order.created_at|date:"Y/m/d H:i" }}</span>
+      <span class="badge bg-info text-dark">{{ order.get_status_display }}</span>
+    </div>
+    <ul class="list-group list-group-flush">
+      {% for item in order.items.all %}
+        <li class="list-group-item">
+          {{ item.product_name }} × {{ item.quantity }}
+          — {{ item.line_total|floatformat:2 }} {{ CURRENCY }}
+          <div class="small text-muted">
+            {{ item.options_summary }}
+            {% if item.custom_text %} | النص: «{{ item.custom_text }}»{% endif %}
+            {% if item.uploaded_image %} | <a href="{{ item.uploaded_image.url }}" target="_blank">الصورة المرفقة</a>{% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+    <div class="card-footer text-end fw-bold">الإجمالي: {{ order.total_price|floatformat:2 }} {{ CURRENCY }}</div>
+  </div>
+{% empty %}
+  <div class="alert alert-info">لا توجد طلبات بعد.</div>
+{% endfor %}
+{% endblock %}

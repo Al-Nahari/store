@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}السلة | متجر التخصيص الذكي{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">🛒 سلة المشتريات</h2>
+
+{% if items %}
+  <div class="table-responsive">
+    <table class="table table-bordered align-middle bg-white">
+      <thead class="table-light">
+        <tr><th>المنتج والتخصيص</th><th>سعر الوحدة</th><th style="width:150px">الكمية</th><th>الإجمالي</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          <tr>
+            <td>
+              <div class="d-flex gap-3">
+                {% if item.image_url %}
+                  <img src="{{ item.image_url }}" class="cart-thumb" alt="الصورة المرفوعة">
+                {% endif %}
+                <div>
+                  <strong>{{ item.product.name }}</strong>
+                  <ul class="list-unstyled small text-muted mb-0">
+                    {% for opt in item.options %}
+                      <li>{{ opt.get_option_type_display }}: {{ opt.name }}</li>
+                    {% endfor %}
+                    {% if item.custom_text %}<li>النص: «{{ item.custom_text }}»</li>{% endif %}
+                    {% if item.image_url %}<li>مرفق صورة مخصصة</li>{% endif %}
+                  </ul>
+                </div>
+              </div>
+            </td>
+            <td>{{ item.unit_price|floatformat:2 }} {{ CURRENCY }}</td>
+            <td>
+              <!-- تعديل الكمية -->
+              <form method="post" action="{% url 'store:cart_update' item.key %}" class="d-flex gap-1">
+                {% csrf_token %}
+                <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="20" class="form-control form-control-sm">
+                <button class="btn btn-sm btn-outline-secondary">تحديث</button>
+              </form>
+            </td>
+            <td class="fw-bold">{{ item.line_total|floatformat:2 }} {{ CURRENCY }}</td>
+            <td>
+              <form method="post" action="{% url 'store:cart_remove' item.key %}">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger">حذف</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="table-light">
+          <td colspan="3" class="text-end fw-bold fs-5">الإجمالي الكلي</td>
+          <td colspan="2" class="fw-bold fs-5 text-primary">{{ total|floatformat:2 }} {{ CURRENCY }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div class="d-flex justify-content-between">
+    <a href="{% url 'store:home' %}" class="btn btn-outline-primary">← متابعة التسوق</a>
+    <a href="{% url 'store:checkout' %}" class="btn btn-success btn-lg">إتمام الطلب ←</a>
+  </div>
+{% else %}
+  <div class="alert alert-info">سلتك فارغة. <a href="{% url 'store:home' %}">تصفح المنتجات</a></div>
+{% endif %}
+{% endblock %}

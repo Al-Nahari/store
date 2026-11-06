@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}{{ product.name }} | متجر التخصيص الذكي{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- العمود الأول: المعاينة المباشرة التقريبية -->
+  <div class="col-lg-6">
+    <div class="preview-box">
+      {% if product.image %}
+        <img src="{{ product.image.url }}" class="base" alt="{{ product.name }}">
+      {% else %}
+        <div class="img-placeholder">🎁</div>
+      {% endif %}
+      <div id="colorChip" style="display:none"></div>
+      <div id="previewText"></div>
+      <img id="previewUpload" alt="معاينة الصورة المرفوعة">
+    </div>
+    <p class="text-muted small mt-2">* المعاينة تقريبية وليست مطابقة تماماً للطباعة النهائية.</p>
+  </div>
+
+  <!-- العمود الثاني: نموذج التخصيص -->
+  <div class="col-lg-6">
+    <h2>{{ product.name }}</h2>
+    <p class="text-muted">{{ product.description }}</p>
+
+    <!-- enctype="multipart/form-data" ضروري لرفع الملفات -->
+    <form method="post" enctype="multipart/form-data" id="customForm"
+          data-base-price="{{ product.base_price|stringformat:'f' }}">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <!-- مجموعات الخيارات (اللون، المقاس) -->
+      {% for group in option_groups %}
+        <div class="mb-3">
+          <label class="form-label fw-bold">{{ group.label }}</label>
+          <div class="d-flex flex-wrap gap-2">
+            {% for opt in group.options %}
+              <input type="radio" class="btn-check opt-input" name="{{ group.type }}"
+                     id="opt{{ opt.pk }}" value="{{ opt.pk }}"
+                     data-price="{{ opt.extra_price|stringformat:'f' }}"
+                     data-color="{{ opt.color_code }}"
+                     {% if group.field.value %}{% if group.field.value|stringformat:'s' == opt.pk|stringformat:'s' %}checked{% endif %}{% elif forloop.first %}checked{% endif %}>
+              <label class="btn btn-outline-primary" for="opt{{ opt.pk }}">
+                {% if opt.color_code %}<span class="swatch" style="background: {{ opt.color_code }}"></span>{% endif %}
+                {{ opt.name }}
+                {% if opt.extra_price > 0 %}<small>(+{{ opt.extra_price|floatformat:2 }})</small>{% endif %}
+              </label>
+            {% endfor %}
+          </div>
+          {% for error in group.field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+
+      <!-- النص المخصص (يظهر فقط إن سمح به المنتج) -->
+      {% if form.custom_text %}
+        <div class="mb-3">
+          <label class="form-label fw-bold" for="{{ form.custom_text.id_for_label }}">النص المخصص (اختياري)</label>
+          <input type="text" name="custom_text" id="{{ form.custom_text.id_for_label }}"
+                 class="form-control" maxlength="30" value="{{ form.custom_text.value|default:'' }}"
+                 placeholder="مثال: اسمك أو عبارة قصيرة">
+          {% for error in form.custom_text.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+      {% endif %}
+
+      <!-- رفع الصورة (يظهر فقط إن سمح به المنتج) -->
+      {% if form.uploaded_image %}
+        <div class="mb-3">
+          <label class="form-label fw-bold" for="{{ form.uploaded_image.id_for_label }}">صورة أو شعار (اختياري)</label>
+          <input type="file" name="uploaded_image" id="{{ form.uploaded_image.id_for_label }}"
+                 class="form-control" accept=".jpg,.jpeg,.png,.webp">
+          <div class="form-text">JPG / PNG / WEBP - بحد أقصى 2 ميجابايت.</div>
+          {% for error in form.uploaded_image.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+      {% endif %}
+
+      <!-- الكمية -->
+      <div class="mb-3">
+        <label class="form-label fw-bold" for="{{ form.quantity.id_for_label }}">الكمية</label>
+        <input type="number" name="quantity" id="{{ form.quantity.id_for_label }}" class="form-control"
+               min="1" max="20" value="{{ form.quantity.value|default:1 }}" style="max-width:120px">
+        {% for error in form.quantity.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+
+      <!-- ملخص السعر المباشر (يحسبه JavaScript للعرض فقط؛ السعر الفعلي يحسبه الخادم) -->
+      <div class="card bg-light mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between"><span>سعر الوحدة:</span>
+            <strong><span id="unitPrice">0.00</span> {{ CURRENCY }}</strong></div>
+          <div class="d-flex justify-content-between fs-5"><span>الإجمالي:</span>
+            <strong class="text-primary"><span id="totalPrice">0.00</span> {{ CURRENCY }}</strong></div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg w-100">🛒 أضف إلى السلة</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ------------------------------------------------------------------
+  // JavaScript للمعاينة الفورية وحساب السعر على الشاشة فقط.
+  // السعر الحقيقي يُحسب دائماً في الخادم (pricing.py) عند الإضافة للسلة.
+  // ------------------------------------------------------------------
+  const form = document.getElementById('customForm');
+  const basePrice = parseFloat(form.dataset.basePrice);
+
+  function updatePrice() {
+    let extras = 0;
+    form.querySelectorAll('.opt-input:checked').forEach(i => extras += parseFloat(i.dataset.price));
+    const qty = parseInt(form.querySelector('[name=quantity]').value) || 1;
+    const unit = basePrice + extras;
+    document.getElementById('unitPrice').textContent = unit.toFixed(2);
+    document.getElementById('totalPrice').textContent = (unit * qty).toFixed(2);
+
+    // تحديث دائرة اللون في المعاينة
+    const chip = document.getElementById('colorChip');
+    const checkedColor = form.querySelector('input[name=color]:checked');
+    if (checkedColor && checkedColor.dataset.color) {
+      chip.style.display = 'block';
+      chip.style.background = checkedColor.dataset.color;
+    } else { chip.style.display = 'none'; }
+  }
+
+  form.addEventListener('change', updatePrice);
+  form.addEventListener('input', updatePrice);
+
+  // معاينة النص المكتوب فوق المنتج
+  const textInput = form.querySelector('[name=custom_text]');
+  if (textInput) {
+    const update = () => document.getElementById('previewText').textContent = textInput.value;
+    textInput.addEventListener('input', update); update();
+  }
+
+  // معاينة الصورة المرفوعة (محلياً في المتصفح قبل الإرسال)
+  const fileInput = form.querySelector('[name=uploaded_image]');
+  if (fileInput) {
+    fileInput.addEventListener('change', () => {
+      const img = document.getElementById('previewUpload');
+      const file = fileInput.files[0];
+      if (file) { img.src = URL.createObjectURL(file); img.style.display = 'block'; }
+      else { img.style.display = 'none'; }
+    });
+  }
+
+  updatePrice();
+</script>
+{% endblock %}

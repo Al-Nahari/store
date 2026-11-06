@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}إنشاء حساب{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center"><div class="col-md-6">
+  <div class="card"><div class="card-body">
+    <h4 class="mb-3">إنشاء حساب جديد</h4>
+    <form method="post">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="mb-3">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="form-text">{{ field.help_text|safe }}</div>{% endif %}
+          {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+      <button class="btn btn-primary w-100">إنشاء الحساب</button>
+    </form>
+  </div></div>
+</div></div>
+{% endblock %}

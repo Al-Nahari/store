@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}إتمام الطلب | متجر التخصيص الذكي{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">إتمام الطلب</h2>
+<div class="row g-4">
+
+  <!-- بيانات التوصيل -->
+  <div class="col-lg-7">
+    <div class="card"><div class="card-body">
+      <h5 class="mb-3">بيانات التوصيل</h5>
+      <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+          </div>
+        {% endfor %}
+        <button class="btn btn-success btn-lg w-100">تأكيد الطلب</button>
+      </form>
+    </div></div>
+  </div>
+
+  <!-- ملخص الطلب -->
+  <div class="col-lg-5">
+    <div class="card"><div class="card-body">
+      <h5 class="mb-3">ملخص الطلب</h5>
+      <ul class="list-group list-group-flush">
+        {% for item in items %}
+          <li class="list-group-item px-0">
+            <div class="d-flex justify-content-between">
+              <span>{{ item.product.name }} × {{ item.quantity }}</span>
+              <strong>{{ item.line_total|floatformat:2 }}</strong>
+            </div>
+            <small class="text-muted">
+              {% for opt in item.options %}{{ opt.name }}{% if not forloop.last %}، {% endif %}{% endfor %}
+              {% if item.custom_text %} | النص: «{{ item.custom_text }}»{% endif %}
+              {% if item.image_url %} | صورة مرفقة{% endif %}
+            </small>
+          </li>
+        {% endfor %}
+      </ul>
+      <div class="d-flex justify-content-between fs-5 mt-3">
+        <span>الإجمالي</span>
+        <strong class="text-primary">{{ total|floatformat:2 }} {{ CURRENCY }}</strong>
+      </div>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
